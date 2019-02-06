@@ -1,6 +1,7 @@
 const path = require("path");
 const vm = require("vm");
 const { promisify } = require("util");
+const pkgUp = require('pkg-up');
 
 const { getOptions } = require("loader-utils");
 
@@ -10,7 +11,7 @@ const {
   ReplaceSource,
 } = require("webpack-sources");
 
-module.exports = function(source, map, meta) {
+module.exports = function (source, map, meta) {
   // Using exec() in parallel, so we need separate RegExp instances.
   // That means don't "optimize" this by moving this to the global scope!
   const pattern = /\brequire\((?:'bindings'|"bindings")\)\s*\(([^)]*)\)/g;
@@ -48,7 +49,10 @@ module.exports = function(source, map, meta) {
         : bindings.getRoot(this.resourcePath);
 
       const addonPath = bindings(arg);
-      const addonRequest = `./${path.basename(addonPath)}`;
+      // take addon path and make it relative to the package we're loading it from.
+      const pkgPath = path.dirname(path.dirname(await pkgUp(addonPath)));
+      const addonRequest = path.relative(pkgPath, addonPath);
+      // const addonRequest = `./${path.basename(addonPath)}`;
       const addonContent = await readFile(addonPath);
       this.emitFile(addonRequest, addonContent);
 
